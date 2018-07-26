@@ -1,10 +1,8 @@
-#!/usr/bin/python2.7
-
-MSG_TYPES = { 1L: "HELLO",
-              2L: "DBDESC",
-              3L: "LSREQ",
-              4L: "LSUPD",
-              5L: "LSACK",
+MSG_TYPES = { 1: "HELLO",
+              2: "DBDESC",
+              3: "LSREQ",
+              4: "LSUPD",
+              5: "LSACK",
             }
 
 LSAV3_TYPES = { 8193: "ROUTER",             # links between routers in the area, 0X2001

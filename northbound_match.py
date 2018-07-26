@@ -13,53 +13,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/usr/bin/python
-
 import logging
 LOG = logging.getLogger('ryu.app.Match')
 LOG.setLevel(logging.INFO)
 
 class Match(object):
 
-  match_fields = { #all supported match fields. eg, curl -d "match="in_port=1,out_port=2,nw_src=::01""
-  "in_port": None,
-  "eth_type": None,
-  "out_port": None,
-  "ipv6_src": None,
-  "ipv6_dst": None,
-  "dl_src": None,
-  "dl_dst": None
-  }
-  
-  def get_match_fields(self):
-  	return match_fields
+    match_fields = { #all supported match fields. eg, curl -d "match="in_port=1,out_port=2,nw_src=::01""
+        "in_port": None,
+        "eth_type": None,
+        "out_port": None,
+        "ipv6_src": None,
+        "ipv6_dst": None,
+        "dl_src": None,
+        "dl_dst": None
+    }
 
-  def parse_match_fields(self, str):
-	LOG.debug("Match.parse_match_field, str=%s" % str)
-  	tokens = str.split(',')
-  	for t in tokens:
-		try:
-      			key = t.split("=")[0]
-      			value = t.split("=")[1]
-		except:
-			LOG.error("Invalid match field: %s" % t)
-			return None
+    def get_match_fields(self):
+        return self.match_fields
 
-      		if key in self.match_fields:
-        		self.match_fields[key] = value
-      		else:
-        		LOG.warn("Key isn't supported: %s" % key)
-    	return self.match_fields
+    def parse_match_fields(self, str):
+        LOG.debug("Match.parse_match_field, str=%s" % str)
+        tokens = str.split(',')
+        for t in tokens:
+            try:
+                key = t.split("=")[0]
+                value = t.split("=")[1]
+            except:
+                LOG.error("Invalid match field: %s" % t)
+                return None
 
-  def __init__(self, **kwagrs):
-	super(Match, self).__init__()
-	for key in self.match_fields:
-		self.match_fields[key] = None
-  	for key in kwagrs:
-      		self.match_fields[key] = kwagrs[key]
-    
+            if key in self.match_fields:
+                self.match_fields[key] = value
+            else:
+                LOG.warning("Key isn't supported: %s" % key)
+        return self.match_fields
 
-  def print_me(self):
-  	LOG.info("Match_fields -> value")
-    	for key in self.match_fields:
-      		LOG.info("%s -> %s" % (key, self.match_fields[key]))
+    def __init__(self, **kwagrs):
+        super(Match, self).__init__()
+        for key in self.match_fields:
+            self.match_fields[key] = None
+        for key in kwagrs:
+            self.match_fields[key] = kwagrs[key]
+
+    def print_me(self):
+        LOG.info("Match_fields -> value")
+        for key in self.match_fields:
+            LOG.info("%s -> %s" % (key, self.match_fields[key]))
