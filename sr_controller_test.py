@@ -254,7 +254,7 @@ class SR_controller(app_manager.RyuApp):
         LOG.info("Controller started!")
 
     def __del__(self):
-        thread.exit()
+        raise NotImplementedError("The controller should not be deleted!")
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -269,16 +269,13 @@ class SR_controller(app_manager.RyuApp):
         LOG.info("New OVS connected: %d, still waiting for %s OVS to join ..." % (datapath.id, self.NUM_OF_OVS_SWITCHES-1-len(self.dpset.get_all())))
         if len(self.dpset.get_all()) == self.NUM_OF_OVS_SWITCHES-1:
             try:
-                SR_rest_api(dpset=self.dpset, wsgi=self.wsgi);
+                SR_rest_api(dpset=self.dpset, wsgi=self.wsgi)
                 SR_flows_mgmt.set_dpid_to_datapath(self.dpid_to_datapath)
                 LOG.info("Datapath objects:")
                 LOG.info(self.dpid_to_datapath)
                 LOG.info("Northbound REST started!")
             except Exception as e:
                 LOG.error("Error when start the NB API: %s" % e)
-
-
-
 
     
 if __name__ == "__main__":
