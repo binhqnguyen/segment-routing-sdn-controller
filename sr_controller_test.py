@@ -17,22 +17,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+from netdiff import NetJsonParser
+import networkx
 from ryu.base import app_manager
+from ryu import cfg
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.controller import dpset
 from ryu.app.wsgi import  WSGIApplication
+
 from ofctl_rest_listener import SR_rest_api
-from sr_flows_mgmt import SR_flows_mgmt
 from parameters import *
+from sr_flows_mgmt import SR_flows_mgmt
 from TE.te_controller import *
-import logging
 
 LOG = logging.getLogger('ryu.app.SR_controller')
 LOG.setLevel(logging.INFO)
 
 DEBUG = 0
+
+DEFAULT_NETJSON_FILE = "./netinfo.json"
 
 class SR_controller(app_manager.RyuApp):
     _CONTEXTS = {
@@ -110,34 +116,19 @@ class SR_controller(app_manager.RyuApp):
         else:
             return None
 
-    def fetch_parameters_from_file(self):
-        for l in open(self.PARAMETER_FILE, "read").readlines():
-            if self._extract_value("n1_pub", l):
-                self.OVS_ADDR["0"] = self._extract_value("n1_pub", l)
-            if self._extract_value("n5_pub", l):
-                self.OVS_ADDR["1"] = self._extract_value("n5_pub", l)
+    def fetch_parameters_from_file(self, filename: str, ovs_regex: str=r'ovs') -> NetJsonParser:
+        """
+        Read the starting network from a file containing netjson
 
-            if self._extract_value("n6_2", l):
-                self.OVS_IPV6_DST["0"] = self._extract_value("n6_2", l)
-            if self._extract_value("n0_1", l):
-                self.OVS_IPV6_DST["1"] = self._extract_value("n0_1", l)
+        Any node in the resulting graph which has a label matching ovs_regex is assumed to be a slave to
+        this controller
 
-            if self._extract_value("n2_a_mac", l):
-                self.OVS_SR_MAC["0"] = self._extract_value("n2_a_mac", l)
-            if self._extract_value("n3_e_mac", l):
-                self.OVS_SR_MAC["1"] = self._extract_value("n3_e_mac", l)
-
-            if self._extract_value("n0_1_mac", l):
-                self.OVS_DST_MAC["0"] = self._extract_value("n0_1_mac", l)
-            if self._extract_value("n6_2_mac", l):
-                self.OVS_DST_MAC["1"] = self._extract_value("n6_2_mac", l)
-
-            if self._extract_value("IS_SHORTEST_PATH", l):
-                self.IS_SHORTEST_PATH = self._extract_value("IS_SHORTEST_PATH", l)
-
-            if "#" not in l:
-                [key, value] = l.split("=")
-                self.ALL_PARAMETERS[key] = value[1:-2]
+        :param filename: NetJSON file to read
+        :parm ovs_regex: Applied to nodes of the resulting graph to identify nodes to control
+        :return:
+        """
+        graph = NetJsonParser(file=filename)
+        return graph
 
     def _construct_segments(self):
         if self.IS_SHORTEST_PATH == "1":
@@ -239,22 +230,27 @@ class SR_controller(app_manager.RyuApp):
 
     def __init__(self, *args, **kwargs):
         super(SR_controller, self).__init__(args, kwargs)
+
+        # These parameters can be changed in the 'normal' Ryu way, by using a config file
+        # https://stackoverflow.com/questions/46415069
+        args = cfg.CONF
+        args.register_opts([
+            cfg.StrOpt("net_json", default=DEFAULT_NETJSON_FILE,
+                       help="Path to NetJSON file to parse for the initial topology"),
+            cfg.StrOpt("ovs_regex", default=r'.*ovs.*',
+                       help="Regex applied to node labels to determine which are slaves to this controller"),
+        ])
+
         self.dpset = kwargs['dpset']
         self.wsgi = kwargs['wsgi']
-        self.fetch_parameters_from_file()
+        self.graph = self.fetch_parameters_from_file(filename=args.net_json, ovs_regex=args.ovs_regex)
         self._construct_segments()
-        LOG.debug("Fetched information from file: %s" %self.PARAMETER_FILE)
-        LOG.debug("OVS_IPV6_DST %s" % self.OVS_IPV6_DST)
-        LOG.debug("OVS_SR_MAC %s" % self.OVS_SR_MAC)
-        LOG.debug("OVS_DST_MAC %s" % self.OVS_DST_MAC)
-        LOG.debug("OVS_SEGS %s" % self.OVS_SEGS)
-        LOG.debug("OVS_ADDR %s" % self.OVS_ADDR)
-        LOG.debug("IS_SHORTEST_PATH %s" % self.IS_SHORTEST_PATH)
-        LOG.debug("ALL %s" % self.ALL_PARAMETERS)
+        LOG.debug("Fetched information from file: %s" % args.net_json)
         LOG.info("Controller started!")
 
     def __del__(self):
-        raise NotImplementedError("The controller should not be deleted!")
+        #raise NotImplementedError("The controller should not be deleted!")
+        pass
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
