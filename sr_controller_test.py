@@ -130,32 +130,6 @@ class SR_controller(app_manager.RyuApp):
         graph = NetJsonParser(file=filename)
         return graph
 
-    def _construct_segments(self):
-        if self.IS_SHORTEST_PATH == "1":
-            #segments 2->3, 3->2
-            self.OVS_SEGS["0"].append(self.ALL_PARAMETERS["n2_a"])
-            self.OVS_SEGS["0"].append(self.ALL_PARAMETERS["n3_b"])
-
-            self.OVS_SEGS["1"].append(self.ALL_PARAMETERS["n3_e"])
-            self.OVS_SEGS["1"].append(self.ALL_PARAMETERS["n2_b"])
-        else:
-            #segments 2->4->3, 3->4->2
-            self.OVS_SEGS["0"].append(self.ALL_PARAMETERS["n2_a"])
-            self.OVS_SEGS["0"].append(self.ALL_PARAMETERS["n4_c"])
-            self.OVS_SEGS["0"].append(self.ALL_PARAMETERS["n3_d"])
-
-            self.OVS_SEGS["1"].append(self.ALL_PARAMETERS["n3_e"])
-            self.OVS_SEGS["1"].append(self.ALL_PARAMETERS["n4_d"])
-            self.OVS_SEGS["1"].append(self.ALL_PARAMETERS["n2_c"])
-
-    def get_parameters(self, ovs_address):
-        ovs = "1"
-        for i in self.OVS_ADDR:
-            if self.OVS_ADDR[i] == ovs_address:
-                ovs = "%s" % i
-                break
-        return parameters(in_port = self.OVS_INPORT[i], out_port = self.OVS_OUTPORT[i], ipv6_dst = self.OVS_IPV6_DST[i], sr_mac = self.OVS_SR_MAC[i], dst_mac = self.OVS_DST_MAC[i], segs = self.OVS_SEGS[i])
-
     def _add_flow(self, datapath, priority, match, actions):
           ofproto = datapath.ofproto
           parser = datapath.ofproto_parser
@@ -244,7 +218,6 @@ class SR_controller(app_manager.RyuApp):
         self.dpset = kwargs['dpset']
         self.wsgi = kwargs['wsgi']
         self.graph = self.fetch_parameters_from_file(filename=args.net_json, ovs_regex=args.ovs_regex)
-        self._construct_segments()
         LOG.debug("Fetched information from file: %s" % args.net_json)
         LOG.info("Controller started!")
 
@@ -258,7 +231,6 @@ class SR_controller(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         ovs_address = datapath.address[0]
-        parameters = self.get_parameters(ovs_address)
         self.del_flows(datapath)
         self.dpid_to_datapath[datapath.id] = datapath
         self._push_bridging_flows(datapath, parser)
