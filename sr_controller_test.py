@@ -29,7 +29,6 @@ from ryu.controller import dpset
 from ryu.app.wsgi import  WSGIApplication
 
 from ofctl_rest_listener import SR_rest_api
-from parameters import *
 from sr_flows_mgmt import SR_flows_mgmt
 from TE.te_controller import *
 
