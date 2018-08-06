@@ -47,11 +47,11 @@ class SR_rest_api(app_manager.RyuApp):
         'dpset': dpset.DPSet,
         'wsgi': WSGIApplication
     }
-    def __init__(self, *args, **kwargs):
+    def __init__(self, dpset, wsgi, *args, **kwargs):
         super(SR_rest_api, self).__init__(*args, **kwargs)
         LOG.debug("Init SR_rest_api")
-        self.dpset = kwargs['dpset']
-        wsgi = kwargs['wsgi']
+        self.dpset = dpset
+        wsgi = wsgi
         self.waiters = {}
         self.data = {}
         self.data['dpset'] = self.dpset
@@ -59,7 +59,6 @@ class SR_rest_api(app_manager.RyuApp):
         mapper = wsgi.mapper
 
         wsgi.registory['North_api'] = self.data
-        
 
         flow_mgmt = "flow_mgmt"
         ospf_monitor = "ospf_monitor"
@@ -75,8 +74,7 @@ class SR_rest_api(app_manager.RyuApp):
                        controller=North_api, action='delete_all_flows',
                        conditions=dict(method=['POST']))
 
-
-    #Usage: curl --data 'dpid=17779080870&match=ipv6_dst=2001::204:23ff:feb7:1e40,eth_type=0x86DD&actions=ipv6_dst=2001::208:204:23ff:feb7:1e40,ipv6_dst=2001::208:204:23ff:feb7:1e41,ipv6_dst=2001::208:204:23ff:feb7:1e42,output=1' http://0.0.0.0:8080/flow_mgmt/insert
+        #Usage: curl --data 'dpid=17779080870&match=ipv6_dst=2001::204:23ff:feb7:1e40,eth_type=0x86DD&actions=ipv6_dst=2001::208:204:23ff:feb7:1e40,ipv6_dst=2001::208:204:23ff:feb7:1e41,ipv6_dst=2001::208:204:23ff:feb7:1e42,output=1' http://0.0.0.0:8080/flow_mgmt/insert
         uri = flow_mgmt_path + '/insert'
         mapper.connect(flow_mgmt, uri,
                        controller=North_api, action='insert_single_flow',
@@ -106,9 +104,6 @@ class SR_rest_api(app_manager.RyuApp):
         mapper.connect(ospf_monitor, uri,
                        controller=Te_controller, action='get_topology_netjson',
                        conditions=dict(method=['GET']))
-
-
-
 
 
     @set_ev_cls([ofp_event.EventOFPStatsReply,
