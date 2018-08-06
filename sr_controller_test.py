@@ -48,27 +48,10 @@ class SR_controller(app_manager.RyuApp):
     #Network topology graph
     graph = Te_controller.graph
 
-    #NEEDED TO CHANGE BEFORE RUNNING!
-    NUM_OF_OVS_SWITCHES = 2
-
     ARP_REQUEST_TYPE = 0x0806 
     IPV6_TYPE = 0x86DD
-    PARAMETER_FILE = "/opt/net_info.sh"
     SRV6_PORT = 5
-    OVS_ADDR = {}
-    OVS_INPORT = { "0":1,
-            "1":1
-            }
-    OVS_OUTPORT = { "0":2,
-            "1":2
-            }
-    OVS_IPV6_DST = {}
-    OVS_SR_MAC = {}
-    OVS_DST_MAC = {}
-    OVS_SEGS = defaultdict(list)
     IS_SHORTEST_PATH = "0"
-    ALL_PARAMETERS = {}
-    dpid_to_datapath = {}
 
     #OVS_IPV6_DST = { "0":"2001::208:204:23ff:feb7:2660", #n6's net2
     #         "1":"2001::204:204:23ff:feb7:1a0a" #n0's net1
@@ -91,6 +74,32 @@ class SR_controller(app_manager.RyuApp):
     #         "1":["2001::208:204:23ff:feb7:1971","2001::205:204:23ff:feb7:12db"] #n3's nete, n2's netb
     #        }
 
+    def __init__(self, *args, **kwargs):
+        super(SR_controller, self).__init__(args, kwargs)
+
+        # These parameters can be changed in the 'normal' Ryu way, by using a config file
+        # https://stackoverflow.com/questions/46415069
+        args = cfg.CONF
+        args.register_opts([
+            cfg.StrOpt("net_json", default=DEFAULT_NETJSON_FILE,
+                       help="Path to NetJSON file to parse for the initial topology"),
+            cfg.StrOpt("ovs_regex", default=r'.*ovs.*',
+                       help="Regex applied to node labels to determine which are slaves to this controller"),
+        ])
+
+        self.dpset = kwargs['dpset']
+        self.wsgi = kwargs['wsgi']
+        self.graph = self.fetch_parameters_from_file(filename=args.net_json)
+        self.dpid_to_datapath = {}
+        LOG.debug("Fetched information from file: %s" % args.net_json)
+        LOG.info("Controller started!")
+
+        try:
+            SR_rest_api(dpset=self.dpset, wsgi=self.wsgi)
+            SR_flows_mgmt.set_dpid_to_datapath(self.dpid_to_datapath)
+        except Exception as e:
+            LOG.error("Error when start the NB API: %s" % e)
+            raise
 
     def del_flows(self, datapath):
         empty_match = datapath.ofproto_parser.OFPMatch()
@@ -108,15 +117,7 @@ class SR_controller(app_manager.RyuApp):
         LOG.info("Deleting all flow entries in table %s of OVS %s" % (table_id, datapath.address[0]))
         datapath.send_msg(flow_mod)
 
-
-    def _extract_value(self, keyword, l):
-        k = "%s="%keyword
-        if k in l:
-            return l.split("=")[1][1:-2]
-        else:
-            return None
-
-    def fetch_parameters_from_file(self, filename: str, ovs_regex: str=r'ovs') -> NetJsonParser:
+    def fetch_parameters_from_file(self, filename: str) -> NetJsonParser:
         """
         Read the starting network from a file containing netjson
 
@@ -124,7 +125,6 @@ class SR_controller(app_manager.RyuApp):
         this controller
 
         :param filename: NetJSON file to read
-        :parm ovs_regex: Applied to nodes of the resulting graph to identify nodes to control
         :return:
         """
         graph = NetJsonParser(file=filename)
@@ -182,55 +182,27 @@ class SR_controller(app_manager.RyuApp):
         actions.append(parser.OFPActionOutput(parameters.in_port))
         self._add_flow(datapath,0,match,actions)    #lowest priority
 
-    #Make the OVS a bridge to be transparent to the end-host.
-    #The bridging rules have the lowest priority (0). So, without other rules the OVS is a bridge. 
-    #Other rules (which have higher priority) will take be applied 
-    #in the datapath *before* the bridging rules.  
+
     def _push_bridging_flows(self, datapath, parser):
+        """
+        Make the OVS a bridge to be transparent to the end-host.
+        The bridging rules have the lowest priority (0). So, without other rules the OVS is a bridge.
+        Other rules (which have higher priority) will take be applied
+        in the datapath *before* the bridging rules.
+
+        :param datapath: datapath connected to the OVS having rules deployed
+        :return: None
+        """
         LOG.info("Pushing bridging flows for all other IPV6 packets on OVS: %s" % datapath.address[0])
         match = parser.OFPMatch(in_port=1,eth_type=SR_controller.IPV6_TYPE)
-        #match = parser.OFPMatch(in_port=1,eth_type=0x0800)
         actions = []
         actions.append(parser.OFPActionOutput(2))
-        self._add_flow(datapath,0,match,actions) #lowest priority
+        self._add_flow(datapath,match=match,actions=actions,priority=0) #lowest priority
 
         match = parser.OFPMatch(in_port=2,eth_type=SR_controller.IPV6_TYPE)
-        #match = parser.OFPMatch(in_port=2,eth_type=0x0800)
         actions = []
         actions.append(parser.OFPActionOutput(1))
-        self._add_flow(datapath,0,match,actions)    #lowest priority
-
-
-
-    def __init__(self, *args, **kwargs):
-        super(SR_controller, self).__init__(args, kwargs)
-
-        # These parameters can be changed in the 'normal' Ryu way, by using a config file
-        # https://stackoverflow.com/questions/46415069
-        args = cfg.CONF
-        args.register_opts([
-            cfg.StrOpt("net_json", default=DEFAULT_NETJSON_FILE,
-                       help="Path to NetJSON file to parse for the initial topology"),
-            cfg.StrOpt("ovs_regex", default=r'.*ovs.*',
-                       help="Regex applied to node labels to determine which are slaves to this controller"),
-        ])
-
-        self.dpset = kwargs['dpset']
-        self.wsgi = kwargs['wsgi']
-        self.graph = self.fetch_parameters_from_file(filename=args.net_json, ovs_regex=args.ovs_regex)
-        LOG.debug("Fetched information from file: %s" % args.net_json)
-        LOG.info("Controller started!")
-
-        try:
-            SR_rest_api(dpset=self.dpset, wsgi=self.wsgi)
-            SR_flows_mgmt.set_dpid_to_datapath(self.dpid_to_datapath)
-        except Exception as e:
-            LOG.error("Error when start the NB API: %s" % e)
-            raise
-
-    def __del__(self):
-        #raise NotImplementedError("The controller should not be deleted!")
-        pass
+        self._add_flow(datapath,match=match,actions=actions,priority=0) #lowest priority
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -241,25 +213,4 @@ class SR_controller(app_manager.RyuApp):
         self.del_flows(datapath)
         self.dpid_to_datapath[datapath.id] = datapath
         self._push_bridging_flows(datapath, parser)
-        LOG.info("New OVS connected: %d, still waiting for %s OVS to join ..." % (datapath.id, self.NUM_OF_OVS_SWITCHES-len(self.dpset.get_all())))
-
-    
-if __name__ == "__main__":
-    #Testing Sniffer
-    '''
-    if len(sys.argv) != 6:
-        print "Parameters: <net-d-enb interface> <offload-server interface> <net-d-mme interface> <ovs public IP> <ovs controller port>"
-        exit(1)
-
-    enb_port = str(sys.argv[1])
-    offload_port = str(sys.argv[2])
-    sgw_port = str(sys.argv[3])
-    ovs_ip = str(sys.argv[4])
-    ovs_port = str(sys.argv[5])
-    bridge = "tcp:%s:%s" % (ovs_ip, ovs_port)
-
-    smore = SMORE_Controller(bridge=bridge, ovs_ip=ovs_ip, enb_port=enb_inf, sgw_port=sgw_inf, offload_port=offload_inf)
-
-    #create sniffer
-    #sniffer = Sniffer(bridge, ovs_ip, enb_port, sgw_port, offload_port)
-    '''
+        LOG.info("New OVS connected: %d")
