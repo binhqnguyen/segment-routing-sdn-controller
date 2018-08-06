@@ -221,6 +221,13 @@ class SR_controller(app_manager.RyuApp):
         LOG.debug("Fetched information from file: %s" % args.net_json)
         LOG.info("Controller started!")
 
+        try:
+            SR_rest_api(dpset=self.dpset, wsgi=self.wsgi)
+            SR_flows_mgmt.set_dpid_to_datapath(self.dpid_to_datapath)
+        except Exception as e:
+            LOG.error("Error when start the NB API: %s" % e)
+            raise
+
     def __del__(self):
         #raise NotImplementedError("The controller should not be deleted!")
         pass
@@ -234,16 +241,7 @@ class SR_controller(app_manager.RyuApp):
         self.del_flows(datapath)
         self.dpid_to_datapath[datapath.id] = datapath
         self._push_bridging_flows(datapath, parser)
-        LOG.info("New OVS connected: %d, still waiting for %s OVS to join ..." % (datapath.id, self.NUM_OF_OVS_SWITCHES-1-len(self.dpset.get_all())))
-        if len(self.dpset.get_all()) == self.NUM_OF_OVS_SWITCHES-1:
-            try:
-                SR_rest_api(dpset=self.dpset, wsgi=self.wsgi)
-                SR_flows_mgmt.set_dpid_to_datapath(self.dpid_to_datapath)
-                LOG.info("Datapath objects:")
-                LOG.info(self.dpid_to_datapath)
-                LOG.info("Northbound REST started!")
-            except Exception as e:
-                LOG.error("Error when start the NB API: %s" % e)
+        LOG.info("New OVS connected: %d, still waiting for %s OVS to join ..." % (datapath.id, self.NUM_OF_OVS_SWITCHES-len(self.dpset.get_all())))
 
     
 if __name__ == "__main__":
