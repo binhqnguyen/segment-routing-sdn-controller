@@ -31,6 +31,9 @@ class Te_controller(ControllerBase):
 
     def __init__(self, req, link, data, **config):
         super(Te_controller, self).__init__(req, link, data, **config)
+
+    def netjson_import(self, req, **kwargs):
+        return Response(status=200, body="Yay")
     
     #REST API - Return the topology graph, handle OPTIONS request in preflight request 
     def handle_get_topology_OPTIONS(self, req, **_kwargs):

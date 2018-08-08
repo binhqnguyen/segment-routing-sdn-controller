@@ -84,6 +84,11 @@ class SR_rest_api(app_manager.RyuApp):
                        controller=North_api, action='handle_http_options',
                        conditions=dict(method=['OPTIONS']))
 
+        uri = '/netjsonimport'
+        mapper.connect(flow_mgmt, uri,
+                       controller=Te_controller, action='netjson_import',
+                       conditions=dict(method=['POST']))
+
         uri = ospf_monitor_path + '/get_topology'
         mapper.connect(ospf_monitor, uri,
                        controller=Te_controller, action='handle_get_topology_OPTIONS',
