@@ -84,12 +84,6 @@ class SR_rest_api(app_manager.RyuApp):
                        controller=North_api, action='handle_http_options',
                        conditions=dict(method=['OPTIONS']))
 
-
-        uri = ospf_monitor_path + '/lsa_put'
-        mapper.connect(ospf_monitor, uri,
-                       controller=Te_controller, action='receive_ospf_lsa',
-                       conditions=dict(method=['POST']))
-
         uri = ospf_monitor_path + '/get_topology'
         mapper.connect(ospf_monitor, uri,
                        controller=Te_controller, action='handle_get_topology_OPTIONS',

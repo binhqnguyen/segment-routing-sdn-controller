@@ -58,8 +58,21 @@ class North_api(ControllerBase):
             return Response(status=200, headers=HEADERS)
         return Response(status=500, headers=HEADERS)
 
-    def handle_http_options(self, req, **_kwargs):
-                return Response(content_type='application/json', headers=HEADERS)
+        #NORTH BOUND API - REST
+    def delete_all_flows(self, req, **_kwargs):
+        post = req.POST
+        SR = SR_flows_mgmt()
+        if len(post) != 1 or "dpid" not in post:
+            LOG.info("INVALID POST values: %s" % post)
+            return Response(status=404, headers=HEADERS)
+
+        dpid = post['dpid']
+
+        LOG.debug("RECEIVED NB API: delete_all_flows: (dpid) = (%s)" % (dpid) )
+        if SR.delete_all_flows(dpid):
+            LOG.info("Deleted all flows in switch %s." % dpid)
+            return Response(status=200, headers=HEADERS)
+        return Response(status=500, headers=HEADERS)
 
     #Usage: curl --data "dpid=12345&match=123,456&actions=src_ip=1,dst_ip=2" http://0.0.0.0:8080/flow_mgmt/insert
     def insert_single_flow(self, req, **_kwargs):
@@ -88,31 +101,5 @@ class North_api(ControllerBase):
             LOG.error("Can't insert a flow!")
             return Response(status=500, headers=HEADERS)
 
-        #NORTH BOUND API - REST
-    def delete_all_flows(self, req, **_kwargs):
-        post = req.POST
-        SR = SR_flows_mgmt()
-        if len(post) != 1 or "dpid" not in post:
-            LOG.info("INVALID POST values: %s" % post)
-            return Response(status=404, headers=HEADERS)
-
-        dpid = post['dpid']
-        
-        LOG.debug("RECEIVED NB API: delete_all_flows: (dpid) = (%s)" % (dpid) )
-        if SR.delete_all_flows(dpid):
-            LOG.info("Deleted all flows in switch %s." % dpid)
-            return Response(status=200, headers=HEADERS)
-        return Response(status=500, headers=HEADERS)
-
-    #NORTH BOUND API - OSPF MONITOR
-    def receive_ospf_lsa(self, req, **_kwargs):
-        post = req.POST
-        #ospf_monitor = OSPF_monitor()
-        #LOG.info("post len = %s" % len(post))
-        for k in post:
-            LOG.info("post[%s]=%s" % (k, post[k]))
-        LOG.info("RECEIVED NB API: receive_ospf_lsa: %s" % post)
-        #LOG.info("RECEIVED NB API: receive_ospf_lsa")
-        return Response(status=500)
-
-
+    def handle_http_options(self, req, **_kwargs):
+                return Response(content_type='application/json', headers=HEADERS)
