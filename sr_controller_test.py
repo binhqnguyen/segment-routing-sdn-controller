@@ -44,8 +44,6 @@ class SR_controller(app_manager.RyuApp):
             'dpset': dpset.DPSet,
             'wsgi': WSGIApplication,
         }
-    #Network topology graph
-    graph = Te_controller.graph
 
     ARP_REQUEST_TYPE = 0x0806 
     IPV6_TYPE = 0x86DD

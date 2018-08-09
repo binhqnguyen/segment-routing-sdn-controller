@@ -17,22 +17,28 @@
 from ryu.app.wsgi import ControllerBase
 import logging
 from webob import Response
-from TE.structs import *
-import json
+from netdiff import NetJsonParser
 
 LOG = logging.getLogger('ryu.app.Te_controller')
 LOG.setLevel(logging.DEBUG)
 
 
 class Te_controller(ControllerBase):
-
-    #Graph, static variable
-    graph = G()
+    graph = NetJsonParser(data={"type": "NetworkGraph",
+                                "protocol": "static",
+                                "version": None,
+                                "metric": None,
+                                "nodes": [],
+                                "links": []})
 
     def __init__(self, req, link, data, **config):
         super(Te_controller, self).__init__(req, link, data, **config)
+        self.data = data
 
     def netjson_import(self, req, **kwargs):
+        incoming_json = req.body.decode(req.charset)
+        importing_graph = NetJsonParser(incoming_json)
+        Te_controller.graph = importing_graph
         return Response(status=200, body="Yay")
     
     #REST API - Return the topology graph, handle OPTIONS request in preflight request 
@@ -44,26 +50,5 @@ class Te_controller(ControllerBase):
                     'Content-Type':'application/json'}
         return Response(content_type='application/json', headers=headers)
 
-
-    #REST API - Return the topology graph 
-    def get_topology(self, req, **_kwargs):
-        graph = Te_controller.graph.translate_to_dict()
-        LOG.debug("Graph returned: %s" % (graph))
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST',
-            'Access-Control-Allow-Headers': 'Origin, Content-Type',
-            'Content-Type':'application/json'
-        }
-        return Response(content_type='application/json', body=json.dumps(graph), headers=headers)
-
     def get_topology_netjson(self, req, **_kwargs):
-        graph = Te_controller.graph.translate_to_dict_netjson()
-        headers = {
-           'Access-Control-Allow-Origin': '*',
-           'Access-Control-Allow-Methods': 'GET, POST',
-           'Access-Control-Allow-Headers': 'Origin, Content-Type',
-           'Content-Type':'application/json'
-        }
-        LOG.debug("Graph returned: %s" % (graph))
-        return Response(content_type='application/json', json_body=graph, headers=headers)
+        return Response(content_type='application/json', json_body=Te_controller.graph.json(dict=True))
