@@ -15,9 +15,11 @@
 # limitations under the License.
 
 from ryu.app.wsgi import ControllerBase
+import ipaddress
 import logging
-from webob import Response
 from netdiff import NetJsonParser
+import networkx
+from webob import Response
 
 LOG = logging.getLogger('ryu.app.Te_controller')
 LOG.setLevel(logging.DEBUG)
@@ -38,6 +40,15 @@ class Te_controller(ControllerBase):
     def netjson_import(self, req, **kwargs):
         incoming_json = req.body.decode(req.charset)
         importing_graph = NetJsonParser(incoming_json)
+        # ASSUMPTION WARNING
+        # I have conveniently used each node's IP address as its OSPF ID. That means, for me, it is
+        # safe to convert the incoming labels back to dotted-quad form
+        mapping = {}
+        for id in importing_graph.graph.nodes:
+            dotted_quad = ipaddress.IPv4Address(id)
+            mapping[id] = str(dotted_quad)
+        importing_graph.graph = networkx.relabel_nodes(importing_graph.graph, mapping)
+
         Te_controller.graph = importing_graph
         return Response(status=200, body="Yay")
     
