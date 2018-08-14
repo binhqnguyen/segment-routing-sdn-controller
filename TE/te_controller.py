@@ -51,4 +51,11 @@ class Te_controller(ControllerBase):
         return Response(content_type='application/json', headers=headers)
 
     def get_topology_netjson(self, req, **_kwargs):
-        return Response(content_type='application/json', json_body=Te_controller.graph.json(dict=True))
+        headers = {
+            'Access-Control-Allow-Origin': '*', # Anybody may request this resource
+            'Access-Control-Allow-Methods': 'GET',
+            'Access-Control-Allow-Headers': 'Origin, Content-Type',
+        }
+        return Response(content_type='application/json',
+                        json_body=Te_controller.graph.json(dict=True),
+                        headers=headers,)
