@@ -80,7 +80,7 @@ class SR_controller(app_manager.RyuApp):
         args.register_opts([
             cfg.StrOpt("net_json", default=DEFAULT_NETJSON_FILE,
                        help="Path to NetJSON file to parse for the initial topology"),
-            cfg.StrOpt("ovs_regex", default=r'.*ovs.*',
+            cfg.StrOpt("ovs_regex", default=r'^ovs.*',
                        help="Regex applied to node labels to determine which are slaves to this controller"),
         ])
 
