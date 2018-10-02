@@ -6,7 +6,7 @@ This is the SDN controller for Segment Routing tutorial: `http://www.cs.utah.edu
 
 Usage:
 =====
-* Prerequisite: copy RYU extended parser to your RYU `dist-packages`, eg:
+* Prerequisite: copy RYU extended parser to your RYU `dist-packages`, eg:   
 `ofproto_v1_3_parser.py to /usr/local/lib/python2.7/dist-packages/ryu/ofproto/ofproto_v1_3_parser.py`
 
 * Run SDN controller:
